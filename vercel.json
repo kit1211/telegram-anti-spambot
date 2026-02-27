@@ -1,13 +1,17 @@
 {
-  "functions": {
-    "index.ts": {
-      "runtime": "edge"
-    }
-  },
+  "buildCommand": "echo 'No build needed'",
   "rewrites": [
     {
+      "source": "/api/webhook",
+      "destination": "/api/webhook"
+    },
+    {
+      "source": "/api/setup",
+      "destination": "/api/setup"
+    },
+    {
       "source": "/(.*)",
-      "destination": "/index.ts"
+      "destination": "/api/webhook"
     }
   ]
 }

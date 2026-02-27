@@ -913,67 +913,62 @@ export async function setWebhook(url: string) {
   return tg("setWebhook", { url, allowed_updates: ["message", "callback_query"] });
 }
 
-// ─── Vercel Serverless Function (default export) ───
-
-export default async function handler(req: Request): Promise<Response> {
-  const url = new URL(req.url);
-
-  // Health check endpoint
-  if (req.method === "GET" && url.pathname === "/") {
-    return new Response("⚡ ANTI-SPAM SYSTEM — ONLINE ⚡", {
-      headers: { "Content-Type": "text/plain" },
-    });
-  }
-
-  // Webhook endpoint
-  if (req.method === "POST" && (url.pathname === "/webhook" || url.pathname === "/api/webhook")) {
-    try {
-      const update = await req.json() as TelegramUpdate;
-      await handleUpdate(update);
-      return new Response(JSON.stringify({ ok: true }), {
-        headers: { "Content-Type": "application/json" },
-      });
-    } catch (error) {
-      console.error("Webhook error:", error);
-      return new Response(JSON.stringify({ ok: false, error: String(error) }), {
-        status: 500,
-        headers: { "Content-Type": "application/json" },
-      });
-    }
-  }
-
-  // Setup webhook endpoint (GET /api/setup?url=YOUR_WEBHOOK_URL)
-  if (req.method === "GET" && url.pathname === "/api/setup") {
-    const webhookUrl = url.searchParams.get("url");
-    if (!webhookUrl) {
-      return new Response(JSON.stringify({ error: "Missing 'url' parameter" }), {
-        status: 400,
-        headers: { "Content-Type": "application/json" },
-      });
-    }
-    const result = await setWebhook(webhookUrl);
-    return new Response(JSON.stringify(result), {
-      headers: { "Content-Type": "application/json" },
-    });
-  }
-
-  return new Response("Not Found", { status: 404 });
-}
-
 // ─── Standalone: Bun.serve for local testing ───
 
-if (typeof Bun !== "undefined") {
+if (typeof Bun !== "undefined" && import.meta.main) {
   const PORT = Number(process.env.PORT) || 3000;
-  const WEBHOOK_URL =  `${process.env.WEBHOOK_URL}/api/webhook`;
-  console.log("WEBHOOK_URL:", WEBHOOK_URL);
+  const WEBHOOK_URL = process.env.WEBHOOK_URL;
+  
   if (WEBHOOK_URL) {
-    setWebhook(WEBHOOK_URL).then((r) => console.log("Webhook set:", JSON.stringify(r)));
+    const fullWebhookUrl = WEBHOOK_URL.endsWith("/webhook") || WEBHOOK_URL.endsWith("/api/webhook")
+      ? WEBHOOK_URL
+      : `${WEBHOOK_URL}/api/webhook`;
+    console.log("Setting webhook to:", fullWebhookUrl);
+    setWebhook(fullWebhookUrl).then((r) => console.log("Webhook set:", JSON.stringify(r)));
   }
 
   Bun.serve({
     port: PORT,
     async fetch(req) {
-      return handler(req);
+      const url = new URL(req.url);
+
+      if (req.method === "GET" && url.pathname === "/") {
+        return new Response("⚡ ANTI-SPAM SYSTEM — ONLINE ⚡", {
+          headers: { "Content-Type": "text/plain" },
+        });
+      }
+
+      if (req.method === "POST" && (url.pathname === "/webhook" || url.pathname === "/api/webhook")) {
+        try {
+          const update = (await req.json()) as TelegramUpdate;
+          await handleUpdate(update);
+          return new Response(JSON.stringify({ ok: true }), {
+            headers: { "Content-Type": "application/json" },
+          });
+        } catch (error) {
+          console.error("Webhook error:", error);
+          return new Response(JSON.stringify({ ok: false, error: String(error) }), {
+            status: 500,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+      }
+
+      if (req.method === "GET" && url.pathname === "/api/setup") {
+        const webhookUrl = url.searchParams.get("url");
+        if (!webhookUrl) {
+          return new Response(JSON.stringify({ error: "Missing 'url' parameter" }), {
+            status: 400,
+            headers: { "Content-Type": "application/json" },
+          });
+        }
+        const result = await setWebhook(webhookUrl);
+        return new Response(JSON.stringify(result), {
+          headers: { "Content-Type": "application/json" },
+        });
+      }
+
+      return new Response("Not Found", { status: 404 });
     },
   });
 
