@@ -1,8 +1,4 @@
-import { setWebhook } from "../src/index";
-
-export const config = {
-  runtime: "edge",
-};
+import { setWebhook } from "../src/index.js";
 
 export default async function handler(req: Request): Promise<Response> {
   const url = new URL(req.url);

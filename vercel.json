@@ -1,7 +1,5 @@
 {
-  "functions": {
-    "api/**/*.ts": {
-      "runtime": "edge"
-    }
-  }
+  "buildCommand": "mkdir -p public && echo 'Build complete'",
+  "installCommand": "bun install",
+  "outputDirectory": "public"
 }

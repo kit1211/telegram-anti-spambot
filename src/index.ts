@@ -295,31 +295,57 @@ let isLoaded = false;
 async function loadStore(): Promise<void> {
   if (isLoaded) return;
   try {
-    const file = Bun.file(DATA_FILE);
-    if (await file.exists()) {
-      const content = await file.text();
-      if (content.trim()) {
-        store = JSON.parse(content);
-        console.log("✅ Loaded store from", DATA_FILE);
+    if (typeof Bun !== "undefined") {
+      const file = Bun.file(DATA_FILE);
+      if (await file.exists()) {
+        const content = await file.text();
+        if (content.trim()) {
+          store = JSON.parse(content);
+          console.log("✅ Loaded store from", DATA_FILE);
+        } else {
+          console.log("⚠️ Store file is empty, initializing fresh");
+          store = {};
+        }
       } else {
-        console.log("⚠️ Store file is empty, initializing fresh");
+        console.log("ℹ️ No existing store, starting fresh");
         store = {};
       }
     } else {
-      console.log("ℹ️ No existing store, starting fresh");
-      store = {};
+      const fs = await import("fs/promises");
+      try {
+        const content = await fs.readFile(DATA_FILE, "utf-8");
+        if (content.trim()) {
+          store = JSON.parse(content);
+          console.log("✅ Loaded store from", DATA_FILE);
+        } else {
+          store = {};
+        }
+      } catch {
+        console.log("ℹ️ No existing store, starting fresh");
+        store = {};
+      }
     }
   } catch (error) {
     console.error("⚠️ Error loading store, resetting:", error);
     store = {};
-    await Bun.write(DATA_FILE, "{}");
+    if (typeof Bun !== "undefined") {
+      await Bun.write(DATA_FILE, "{}");
+    } else {
+      const fs = await import("fs/promises");
+      await fs.writeFile(DATA_FILE, "{}", "utf-8");
+    }
   }
   isLoaded = true;
 }
 
 async function saveStore(): Promise<void> {
   try {
-    await Bun.write(DATA_FILE, JSON.stringify(store, null, 2));
+    const data = JSON.stringify(store, null, 2);
+    if (typeof Bun !== "undefined" && import.meta.main) {
+      await Bun.write(DATA_FILE, data);
+    } else {
+      console.log("ℹ️ Running on serverless - using in-memory storage");
+    }
   } catch (error) {
     console.error("⚠️ Error saving store:", error);
   }

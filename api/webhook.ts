@@ -1,14 +1,10 @@
-import { handleUpdate } from "../src/index";
-import type { TelegramUpdate } from "../src/interface";
-
-export const config = {
-  runtime: "edge",
-};
+import { handleUpdate } from "../src/index.js";
+import type { TelegramUpdate } from "../src/interface.js";
 
 export default async function handler(req: Request): Promise<Response> {
   const url = new URL(req.url);
 
-  if (req.method === "GET" && url.pathname === "/api/webhook") {
+  if (req.method === "GET") {
     return new Response("⚡ ANTI-SPAM SYSTEM — ONLINE ⚡", {
       headers: { "Content-Type": "text/plain" },
     });
